@@ -24,6 +24,9 @@ test_verbose:
 gen:
 	@buf generate
 
+proto-image:
+	@buf build -o proto/aq.json
+
 dep:
 	@go get -u github.com/bufbuild/buf/cmd/buf github.com/mgechev/revive
 	@go mod tidy
