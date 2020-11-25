@@ -2,9 +2,8 @@ module github.com/lab5e/aqserver
 
 go 1.15
 
-require github.com/telenordigital/nbiot-go v0.0.0-20200302123245-033df8c1f27d
-
 require (
+	github.com/antihax/optional v1.0.0
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
@@ -16,7 +15,7 @@ require (
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/lab5e/spanclient-go v0.0.4
+	github.com/lab5e/spanclient-go/v4 v4.0.10
 	github.com/mattn/go-sqlite3 v1.9.0
 	github.com/sgreben/piecewiselinear v0.0.0-20200103140426-2cdc2ca8c19b
 	github.com/stretchr/testify v1.6.1

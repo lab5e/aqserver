@@ -16,7 +16,7 @@ import (
 	"github.com/lab5e/aqserver/pkg/listener"
 	"github.com/lab5e/aqserver/pkg/model"
 	"github.com/lab5e/aqserver/pkg/pipeline"
-	"github.com/lab5e/spanclient-go"
+	"github.com/lab5e/spanclient-go/v4"
 	"google.golang.org/protobuf/proto"
 )
 

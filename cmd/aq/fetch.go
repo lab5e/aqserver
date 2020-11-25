@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"time"
 
-	"github.com/lab5e/aqserver/pkg/model"
+	"github.com/antihax/optional"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/pipeline/calculate"
 	"github.com/lab5e/aqserver/pkg/pipeline/persist"
 	"github.com/lab5e/aqserver/pkg/store/sqlitestore"
-	"github.com/telenordigital/nbiot-go"
+	"github.com/lab5e/spanclient-go/v4"
 )
 
 // FetchCommand fetches backlog of data
@@ -30,11 +32,6 @@ func init() {
 
 // Execute ...
 func (a *FetchCommand) Execute(args []string) error {
-	client, err := nbiot.New()
-	if err != nil {
-		return err
-	}
-
 	db, err := sqlitestore.New(opt.DBFilename)
 	if err != nil {
 		log.Fatalf("Unable to open or create database file '%s': %v", opt.DBFilename, err)
@@ -67,52 +64,38 @@ func (a *FetchCommand) Execute(args []string) error {
 
 	var since = beginningOfTime
 	var until = time.Now().UnixNano() / int64(time.Millisecond)
-	var count = 0
-	var countTotal = 0
 
-	// CollectionData coming from horde arrives in descending order
-	// from Received.  So we have to work our way backwards.  We do
-	// this by starting with until being equal to "now" and then set
-	// the next until value from the last entry we got.
-	for {
-		data, err := client.CollectionData(opt.SpanCollectionID, msToTime(since), msToTime(until), a.PageSize)
-		if err != nil {
-			log.Fatalf("Error while reading data: %v", err)
-		}
+	// TODO(borud): here be dragons
+	configuration := spanclient.NewConfiguration()
+	configuration.Debug = true
+	client := spanclient.NewAPIClient(configuration)
 
-		if len(data) == 0 {
-			break
-		}
+	ctx := context.WithValue(context.Background(), spanclient.ContextAPIKey,
+		spanclient.APIKey{
+			Key:    opt.SpanAPIToken,
+			Prefix: "",
+		})
 
-		for _, d := range data {
-			pb, err := model.ProtobufFromData(d.Payload)
-			if err != nil {
-				log.Printf("Failed to decode protobuffer len=%d: %v", len(d.Payload), err)
-				continue
-			}
-
-			m := model.MessageFromProtobuf(pb)
-			if m == nil {
-				log.Printf("Unable to create Message from protobuf")
-				continue
-			}
-
-			m.DeviceID = d.Device.ID
-			m.ReceivedTime = d.Received
-			m.PacketSize = len(d.Payload)
-
-			pipelineRoot.Publish(m)
-			count++
-			countTotal++
-		}
-
-		until = data[len(data)-1].Received - 1
-		if count >= 500 {
-			log.Printf("Imported %d records...", countTotal)
-			count = 0
-		}
+	options := &spanclient.ListCollectionDataOpts{
+		Limit: optional.NewInt32(10),
+		Start: optional.NewString(fmt.Sprint(since)),
+		End:   optional.NewString(fmt.Sprint(until)),
 	}
 
-	log.Printf("Fetched a total of %d messages", countTotal)
+	log.Printf("Listing collection")
+	items, _, err := client.CollectionsApi.ListCollectionData(ctx, opt.SpanCollectionID, options)
+	if err != nil {
+		return fmt.Errorf("Unable to list collection '%s': %w", opt.SpanCollectionID, err)
+	}
+
+	for _, item := range items.Data {
+		log.Printf("> %+v", item)
+	}
+
+	log.Printf("Fetched a total of %d messages", len(items.Data))
 	return nil
+}
+
+func timeToMilliseconds(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
 }
