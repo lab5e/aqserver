@@ -2,22 +2,15 @@ package spanlistener
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/lab5e/aqserver/pkg/aqpb"
+
 	"github.com/lab5e/aqserver/pkg/listener"
-	"github.com/lab5e/aqserver/pkg/model"
 	"github.com/lab5e/aqserver/pkg/pipeline"
-	"github.com/lab5e/spanclient-go/v4"
-	"google.golang.org/protobuf/proto"
+	"github.com/lab5e/aqserver/pkg/util"
 )
 
 type spanListener struct {
@@ -31,29 +24,15 @@ type spanListener struct {
 	shutdownChan     chan interface{}
 }
 
-const (
-	defaultAPIEndpointBaseURL = "wss://api.lab5e.com/span"
-	defaultHandshakeTimeout   = 50 * time.Second
-	defaultReconnectDelay     = 5 * time.Second
-)
-
-var (
-	// ErrMessageWasKeepalive indicates that the message received was a keepalive
-	ErrMessageWasKeepalive = errors.New("Message was keepalive")
-
-	// ErrMessageWasNotData indicates that the messge received was something other than data or keepalive
-	ErrMessageWasNotData = errors.New("Message was not data")
-)
-
 // New creates a new Listener instance which connects to Span.
 func New(pipeline pipeline.Pipeline, apiToken string, collectionID string) listener.Listener {
 	return &spanListener{
 		pipeline:         pipeline,
 		apiToken:         apiToken,
 		collectionID:     collectionID,
-		apiEndpointURL:   endpointURL(defaultAPIEndpointBaseURL, collectionID),
-		handshakeTimeout: defaultHandshakeTimeout,
-		reconnectDelay:   defaultReconnectDelay,
+		apiEndpointURL:   util.EndpointURL(util.DefaultSpanWebsocketEndpointBaseURL, collectionID),
+		handshakeTimeout: util.DefaultSpanWebsocketHandshakeTimeout,
+		reconnectDelay:   util.DefaultSpanWebsocketReconnectDelay,
 		shutdownChan:     make(chan interface{}),
 	}
 }
@@ -76,7 +55,7 @@ func (s *spanListener) WaitForShutdown() {
 }
 
 func (s *spanListener) SetEndpointBaseURLDebug(baseURL string) {
-	s.apiEndpointURL = endpointURL(baseURL, s.collectionID)
+	s.apiEndpointURL = util.EndpointURL(baseURL, s.collectionID)
 }
 
 func (s *spanListener) dataStreamLoop(ctx context.Context) {
@@ -123,13 +102,13 @@ func (s *spanListener) dataStreamLoop(ctx context.Context) {
 			}
 
 			// Ignore keepalives
-			decodedMessage, err := decodePayload(message)
+			decodedMessage, err := util.DecodePayload(message)
 			if err != nil {
-				if err == ErrMessageWasKeepalive {
+				if err == util.ErrMessageWasKeepalive {
 					continue
 				}
 
-				if err == ErrMessageWasNotData {
+				if err == util.ErrMessageWasNotData {
 					log.Printf("unknown message, skipping")
 					continue
 				}
@@ -150,52 +129,4 @@ func (s *spanListener) dataStreamLoop(ctx context.Context) {
 			}
 		}
 	}
-}
-
-// decodePayload peels off layers of protocol to reveal the golden
-// nugget that is the sensor data message.
-func decodePayload(rawPayload []byte) (*model.Message, error) {
-	// Parse JSON
-	var outputDataMessage = spanclient.OutputDataMessage{}
-	err := json.Unmarshal(rawPayload, &outputDataMessage)
-	if err != nil {
-		return &model.Message{}, fmt.Errorf("JSON decode failed %w", err)
-	}
-
-	if outputDataMessage.Type == "keepalive" {
-		return &model.Message{}, ErrMessageWasKeepalive
-	}
-
-	if outputDataMessage.Type != "data" {
-		return &model.Message{}, ErrMessageWasNotData
-	}
-
-	// Decode base64
-	bytePayload, err := base64.StdEncoding.DecodeString(outputDataMessage.Payload)
-	if err != nil {
-		return &model.Message{}, fmt.Errorf("base64 decode failed: %w", err)
-	}
-
-	// Decode Protobuffer
-	var sample = &aqpb.Sample{}
-	err = proto.Unmarshal(bytePayload, sample)
-	if err != nil {
-		return &model.Message{}, fmt.Errorf("Protobuf decode failed: %w", err)
-	}
-
-	// Convert to model.Message and put in packet size and timestamp
-	msg := model.MessageFromProtobuf(sample)
-	msg.PacketSize = len(bytePayload)
-	msg.ReceivedTime, err = strconv.ParseInt(outputDataMessage.Received, 10, 64)
-	if err != nil {
-		msg.ReceivedTime = time.Now().UnixNano() / int64(time.Millisecond)
-	}
-
-	return msg, nil
-}
-
-// endpointURL generates a Websocket endpoint address given the base
-// URL and a collection id.
-func endpointURL(baseURL string, collectionID string) string {
-	return fmt.Sprintf("%s/collections/%s/from", baseURL, collectionID)
 }
