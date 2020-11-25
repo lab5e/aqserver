@@ -12,8 +12,8 @@ import (
 
 // ListCommand defines the command line parameters for list command
 type ListCommand struct {
-	Offset int `short:"o" long:"offset" description:"offset from lowest id" default:"0"`
-	Limit  int `short:"l" long:"limit" description:"Number of entries to show" default:"100"`
+	Offset int `long:"offset" description:"offset from lowest id" default:"0"`
+	Limit  int `long:"limit" description:"Number of entries to show" default:"200"`
 }
 
 func init() {
@@ -25,7 +25,7 @@ func init() {
 
 // Execute runs the list command
 func (a *ListCommand) Execute(args []string) error {
-	db, err := sqlitestore.New(options.DBFilename)
+	db, err := sqlitestore.New(opt.DBFilename)
 	defer db.Close()
 
 	cals, err := db.ListCals(a.Offset, a.Limit)

@@ -24,7 +24,7 @@ func init() {
 
 // Execute runs the list command
 func (a *ShowCommand) Execute(args []string) error {
-	db, err := sqlitestore.New(options.DBFilename)
+	db, err := sqlitestore.New(opt.DBFilename)
 	if err != nil {
 		return err
 	}

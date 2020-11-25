@@ -4,21 +4,17 @@ import (
 	"log"
 
 	"github.com/lab5e/aqserver/pkg/model"
-	"github.com/lab5e/aqserver/pkg/opts"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 )
 
 // Log is a pipeline processor that logs incoming messages
 type Log struct {
 	next pipeline.Pipeline
-	opts *opts.Opts
 }
 
 // New creates new instance of Log pipeline element
-func New(opts *opts.Opts) *Log {
-	return &Log{
-		opts: opts,
-	}
+func New() *Log {
+	return &Log{}
 }
 
 // Publish ...

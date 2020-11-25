@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/lab5e/aqserver/pkg/model"
-	"github.com/lab5e/aqserver/pkg/opts"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/pipeline/calculate"
 	"github.com/lab5e/aqserver/pkg/pipeline/circular"
@@ -63,12 +62,7 @@ func TestRoot(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, db)
 
-	opts := &opts.Opts{
-		HordeCollection: "abc",
-		DBFilename:      ":memory:",
-	}
-
-	root := pipeline.New(opts, db)
+	root := pipeline.New(db)
 	assert.NotNil(t, root)
 
 	root.Publish(testMessage)
@@ -82,15 +76,10 @@ func TestPipeline(t *testing.T) {
 	_, err = db.PutCal(testCal)
 	assert.Nil(t, err)
 
-	opts := &opts.Opts{
-		HordeCollection: "abc",
-		DBFilename:      ":memory:",
-	}
-
-	root := pipeline.New(opts, db)
-	calculate := calculate.New(opts, db)
-	persist := persist.New(opts, db)
-	logger := pipelog.New(opts)
+	root := pipeline.New(db)
+	calculate := calculate.New(db)
+	persist := persist.New(db)
+	logger := pipelog.New()
 	circular := circular.New(10)
 
 	root.AddNext(calculate)

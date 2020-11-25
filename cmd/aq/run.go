@@ -5,8 +5,7 @@ import (
 
 	"github.com/lab5e/aqserver/pkg/api"
 	"github.com/lab5e/aqserver/pkg/listener"
-	"github.com/lab5e/aqserver/pkg/listener/hordelistener"
-	"github.com/lab5e/aqserver/pkg/listener/udplistener"
+	"github.com/lab5e/aqserver/pkg/listener/spanlistener"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/pipeline/calculate"
 	"github.com/lab5e/aqserver/pkg/pipeline/circular"
@@ -24,17 +23,14 @@ const (
 // RunCommand ...
 type RunCommand struct {
 	// Webserver options
-	WebListenAddr   string `short:"w" long:"web-listen-address" description:"Listen address for webserver" default:":8888" value-name:"<[host]:port>"`
-	WebAccessLogDir string `short:"l" long:"web-access-log-dir" description:"Directory for access logs" default:"./logs" value-name:"<dir>"`
+	WebListenAddr   string `long:"web-listen-address" description:"Listen address for webserver" default:":8888" value-name:"<[host]:port>"`
+	WebAccessLogDir string `long:"web-access-log-dir" description:"Directory for access logs" default:"./logs" value-name:"<dir>"`
 
 	// MQTT
 	MQTTAddress     string `long:"mqtt-address" description:"MQTT Address" default:"" value-name:"<[host]:port>"`
 	MQTTClientID    string `long:"mqtt-client-id" env:"MQTT_CLIENT_ID" description:"MQTT Client ID" default:""`
 	MQTTPassword    string `long:"mqtt-password" env:"MQTT_PASSWORD" description:"MQTT Password" default:""`
 	MQTTTopicPrefix string `long:"mqtt-topic-prefix" description:"MQTT topic prefix" default:"aq" value-name:"MQTT topic prefix"`
-
-	// Horde listener
-	HordeListenerEnable bool `long:"enable-horde" description:"Connect to Horde"`
 
 	// UDP listener
 	UDPListenAddress string `long:"udp-listener" description:"Listen address for UDP listener" default:"" value-name:"<[host]:port>"`
@@ -51,41 +47,28 @@ func init() {
 
 var listeners []listener.Listener
 
-// startUDPListener starts the UDP listener
-func (a *RunCommand) startUDPListener(r pipeline.Pipeline) listener.Listener {
-	log.Printf("Starting UDP listener on %s", a.UDPListenAddress)
-	udpListener := udplistener.New(a.UDPListenAddress, a.UDPBufferSize, r)
-	err := udpListener.Start()
+func (a *RunCommand) startSpanListener(r pipeline.Pipeline) listener.Listener {
+	log.Printf("Starting Span listener, listening to collection='%s'", opt.SpanCollectionID)
+	spanListener := spanlistener.New(r, opt.SpanAPIToken, opt.SpanCollectionID)
+	err := spanListener.Start()
 	if err != nil {
-		log.Fatalf("Unable to start UDP listener: %v", err)
+		log.Fatalf("Unable to start Span listener: %v", err)
 	}
-	listeners = append(listeners, udpListener)
-	return udpListener
-}
-
-// startHordeListener
-func (a *RunCommand) startHordeListener(r pipeline.Pipeline) listener.Listener {
-	log.Printf("Starting Horde listener.  Listening to collection='%s'", options.HordeCollection)
-	hordeListener := hordelistener.New(&options, r)
-	err := hordeListener.Start()
-	if err != nil {
-		log.Fatalf("Unable to start Horde listener: %v", err)
-	}
-	listeners = append(listeners, hordeListener)
-	return hordeListener
+	listeners = append(listeners, spanListener)
+	return spanListener
 }
 
 // Execute ...
 func (a *RunCommand) Execute(args []string) error {
 	// Set up persistence
-	db, err := sqlitestore.New(options.DBFilename)
+	db, err := sqlitestore.New(opt.DBFilename)
 	if err != nil {
-		log.Fatalf("Unable to open or create database file '%s': %v", options.DBFilename, err)
+		log.Fatalf("Unable to open or create database file '%s': %v", opt.DBFilename, err)
 	}
 	defer db.Close()
 
 	// Load the calibration data to pick up any new calibration sets.
-	err = loadCalibrationData(db, options.CalibrationDataDir)
+	err = loadCalibrationData(db, opt.CalibrationDataDir)
 	if err != nil {
 		// At this point we don't actually care if this returns an
 		// error because it just means that we won't get any new
@@ -95,10 +78,10 @@ func (a *RunCommand) Execute(args []string) error {
 
 	// Create pipeline elements
 	// TODO(borud): make streaming broker configurable
-	pipelineRoot := pipeline.New(&options, db)
-	pipelineCalc := calculate.New(&options, db)
-	pipelinePersist := persist.New(&options, db)
-	pipelineLog := pipelog.New(&options)
+	pipelineRoot := pipeline.New(db)
+	pipelineCalc := calculate.New(db)
+	pipelinePersist := persist.New(db)
+	pipelineLog := pipelog.New()
 	pipelineCirc := circular.New(circularBufferLength)
 	pipelineStream := stream.NewBroker()
 
@@ -116,12 +99,7 @@ func (a *RunCommand) Execute(args []string) error {
 	}
 
 	// Start Horde listener if enabled
-	a.startHordeListener(pipelineRoot)
-
-	// Start UDP listener if configured
-	if a.UDPListenAddress != "" {
-		a.startUDPListener(pipelineRoot)
-	}
+	a.startSpanListener(pipelineRoot)
 
 	// If we have no listeners there is no point to starting so we terminate
 	if len(listeners) == 0 {

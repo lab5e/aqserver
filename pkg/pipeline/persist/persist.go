@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/lab5e/aqserver/pkg/model"
-	"github.com/lab5e/aqserver/pkg/opts"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/store"
 )
@@ -13,14 +12,12 @@ import (
 type Persist struct {
 	db   store.Store
 	next pipeline.Pipeline
-	opts *opts.Opts
 }
 
 // New creates new Persist pipeline element
-func New(opts *opts.Opts, db store.Store) *Persist {
+func New(db store.Store) *Persist {
 	return &Persist{
-		opts: opts,
-		db:   db,
+		db: db,
 	}
 }
 

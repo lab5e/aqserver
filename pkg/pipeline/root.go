@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/lab5e/aqserver/pkg/model"
-	"github.com/lab5e/aqserver/pkg/opts"
 	"github.com/lab5e/aqserver/pkg/store"
 )
 
@@ -15,15 +14,13 @@ var ErrEmptyPipeline = errors.New("Empty pipeline, has no next element")
 // Root is the root handler for pipelines.
 type Root struct {
 	next Pipeline
-	opts *opts.Opts
 	db   store.Store
 }
 
 // New creates a new Root instance
-func New(opts *opts.Opts, db store.Store) *Root {
+func New(db store.Store) *Root {
 	return &Root{
-		opts: opts,
-		db:   db,
+		db: db,
 	}
 }
 

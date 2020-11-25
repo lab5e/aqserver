@@ -35,14 +35,14 @@ func (a *FetchCommand) Execute(args []string) error {
 		return err
 	}
 
-	db, err := sqlitestore.New(options.DBFilename)
+	db, err := sqlitestore.New(opt.DBFilename)
 	if err != nil {
-		log.Fatalf("Unable to open or create database file '%s': %v", options.DBFilename, err)
+		log.Fatalf("Unable to open or create database file '%s': %v", opt.DBFilename, err)
 	}
 	defer db.Close()
 
 	// Load the calibration data from dir to ensure we have latest
-	loadCalibrationData(db, options.CalibrationDataDir)
+	loadCalibrationData(db, opt.CalibrationDataDir)
 
 	data, err := db.ListMessages(0, 1)
 	if err != nil {
@@ -58,9 +58,9 @@ func (a *FetchCommand) Execute(args []string) error {
 	}
 
 	// Set up pipeline
-	pipelineRoot := pipeline.New(&options, db)
-	pipelineCalc := calculate.New(&options, db)
-	pipelinePersist := persist.New(&options, db)
+	pipelineRoot := pipeline.New(db)
+	pipelineCalc := calculate.New(db)
+	pipelinePersist := persist.New(db)
 
 	pipelineRoot.AddNext(pipelineCalc)
 	pipelineCalc.AddNext(pipelinePersist)
@@ -75,7 +75,7 @@ func (a *FetchCommand) Execute(args []string) error {
 	// this by starting with until being equal to "now" and then set
 	// the next until value from the last entry we got.
 	for {
-		data, err := client.CollectionData(options.HordeCollection, msToTime(since), msToTime(until), a.PageSize)
+		data, err := client.CollectionData(opt.SpanCollectionID, msToTime(since), msToTime(until), a.PageSize)
 		if err != nil {
 			log.Fatalf("Error while reading data: %v", err)
 		}
