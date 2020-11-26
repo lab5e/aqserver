@@ -3,10 +3,11 @@ module github.com/lab5e/aqserver
 go 1.15
 
 require (
+	github.com/ExploratoryEngineering/air-quality-sensor-node/server v0.0.0-20201029190612-e44bed5e6fcb
 	github.com/antihax/optional v1.0.0
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eclipse/paho.mqtt.golang v1.2.0
-	github.com/go-sql-driver/mysql v1.5.0 // indirect
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.3 // indirect
 	github.com/gorilla/handlers v1.4.2

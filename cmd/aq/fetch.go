@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/antihax/optional"
@@ -16,11 +17,8 @@ import (
 
 // FetchCommand fetches backlog of data
 type FetchCommand struct {
-	PageSize int `short:"p" long:"page-size" description:"Number of rows to fetch per page" default:"250"`
+	PageSize int32 `short:"p" long:"page-size" description:"Number of rows to fetch per page" default:"500"`
 }
-
-// For this application we say that time begins on 2020-03-25
-var beginningOfTime = int64(1585094400000)
 
 func init() {
 	parser.AddCommand(
@@ -41,19 +39,6 @@ func (a *FetchCommand) Execute(args []string) error {
 	// Load the calibration data from dir to ensure we have latest
 	loadCalibrationData(db, opt.CalibrationDataDir)
 
-	data, err := db.ListMessages(0, 1)
-	if err != nil {
-		log.Fatalf("Unable to list messages: %v", err)
-	}
-
-	if len(data) == 1 {
-		// I'm assuming we have to add an entire second of data here
-		// in order to make up for the API not having millisecond
-		// resolution?
-		beginningOfTime = data[0].ReceivedTime + 1
-		log.Printf("Will fetch back to %s", msToTime(beginningOfTime))
-	}
-
 	// Set up pipeline
 	pipelineRoot := pipeline.New(db)
 	pipelineCalc := calculate.New(db)
@@ -62,12 +47,8 @@ func (a *FetchCommand) Execute(args []string) error {
 	pipelineRoot.AddNext(pipelineCalc)
 	pipelineCalc.AddNext(pipelinePersist)
 
-	var since = beginningOfTime
-	var until = time.Now().UnixNano() / int64(time.Millisecond)
-
 	// TODO(borud): here be dragons
 	configuration := spanclient.NewConfiguration()
-	configuration.Debug = true
 	client := spanclient.NewAPIClient(configuration)
 
 	ctx := context.WithValue(context.Background(), spanclient.ContextAPIKey,
@@ -76,26 +57,94 @@ func (a *FetchCommand) Execute(args []string) error {
 			Prefix: "",
 		})
 
-	options := &spanclient.ListCollectionDataOpts{
-		Limit: optional.NewInt32(10),
-		Start: optional.NewString(fmt.Sprint(since)),
-		End:   optional.NewString(fmt.Sprint(until)),
-	}
-
 	log.Printf("Listing collection")
-	items, _, err := client.CollectionsApi.ListCollectionData(ctx, opt.SpanCollectionID, options)
-	if err != nil {
-		return fmt.Errorf("Unable to list collection '%s': %w", opt.SpanCollectionID, err)
+	totalCount := 0
+	batchCount := 0
+
+	beginningOfTime := optional.NewString("1582900000000")
+
+	var lastItem spanclient.OutputDataMessage
+	lastTime := timeToMilliseconds(time.Now())
+	for {
+
+		items, _, err := client.CollectionsApi.ListCollectionData(ctx, opt.SpanCollectionID, &spanclient.ListCollectionDataOpts{
+			Limit: optional.NewInt32(a.PageSize),
+			Start: beginningOfTime,
+			End:   optional.NewString(fmt.Sprint(lastTime)),
+		})
+		if err != nil {
+			return fmt.Errorf("Unable to list collection '%s': %w", opt.SpanCollectionID, err)
+		}
+
+		log.Printf(">> %d | %s", len(items.Data), msToTime(lastTime))
+
+		// Check if we have reached the end
+		if len(items.Data) == 0 {
+			log.Printf("last batch")
+			break
+		}
+
+		for _, item := range items.Data {
+			// Skip overlap.
+			if item.Received == lastItem.Received && item.Payload == lastItem.Payload {
+				log.Printf("Skip overlap")
+				continue
+			}
+
+			lastItem = item
+			totalCount++
+			batchCount++
+			if batchCount == 1000 {
+				log.Printf("Fetched %d records", totalCount)
+				batchCount = 0
+			}
+
+			// // deal with item here
+			// // log.Printf("%s %s", item.Received, item.Payload)
+			// bytes, err := base64.StdEncoding.DecodeString(item.Payload)
+			// if err != nil {
+			// 	log.Printf("Failed to decode base64 encoded payload len=%d: %v", len(item.Payload), err)
+			// 	continue
+			// }
+
+			// pb, err := model.ProtobufFromData(bytes)
+			// if err != nil {
+			// 	log.Printf("Failed to unmarshal protobuf len=%d: %v", len(bytes), err)
+			// 	continue
+			// }
+
+			// m := model.MessageFromProtobuf(pb)
+			// if m == nil {
+			// 	log.Printf("Unable to create Message from protobuf")
+			// 	continue
+			// }
+
+			// m.DeviceID = item.Device.DeviceId
+			// m.ReceivedTime, err = strconv.ParseInt(item.Received, 10, 64)
+			// if err != nil {
+			// 	m.ReceivedTime = time.Now().UnixNano() / int64(time.Millisecond)
+			// }
+			// m.PacketSize = len(bytes)
+
+			// pipelineRoot.Publish(m)
+		}
+
+		t, err := strconv.ParseInt(items.Data[len(items.Data)-1].Received, 10, 64)
+		if err != nil {
+			log.Fatalf("Error reading timestamp: %v", err)
+		}
+
+		lastTime = t
 	}
 
-	for _, item := range items.Data {
-		log.Printf("> %+v", item)
-	}
-
-	log.Printf("Fetched a total of %d messages", len(items.Data))
+	log.Printf("Fetched a total of %d messages", totalCount)
 	return nil
 }
 
 func timeToMilliseconds(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
+}
+
+func millisecondsToTime(ms int64) time.Time {
+	return time.Unix(ms/1000, 0)
 }
