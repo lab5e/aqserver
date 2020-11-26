@@ -59,9 +59,9 @@ func (a *FetchCommand) Execute(args []string) error {
 			// in order to make up for the API not having millisecond
 			// resolution?
 			a.StopAt = lastMessage[0].ReceivedTime
-			log.Printf("Will fetch back to %d", a.StopAt)
 		}
 	}
+	log.Printf("Will fetch back to %d", a.StopAt)
 
 	// Set up pipeline
 	pipelineRoot := pipeline.New(db)
@@ -80,8 +80,6 @@ func (a *FetchCommand) Execute(args []string) error {
 			Key:    opt.SpanAPIToken,
 			Prefix: "",
 		})
-
-	log.Printf("Listing collection")
 
 	total := 0
 	seenOldest := false
@@ -113,7 +111,7 @@ func (a *FetchCommand) Execute(args []string) error {
 		}
 
 		ts := time.Unix(0, msTimestamp*int64(time.Millisecond))
-		log.Printf("Got duration='%s' %d records (%d total). Last timestamp = %s (%s)\n", duration, len(items.Data), total, ts.String(), lastReceived)
+		log.Printf("fetch duration='%s' %d records (%d total). Last timestamp = %s (%s)\n", duration, len(items.Data), total, ts.String(), lastReceived)
 
 		for _, item := range reverse(items.Data) {
 			if item.Received == firstItemOfLastBatch.Received && item.Payload == firstItemOfLastBatch.Payload {
@@ -150,7 +148,6 @@ func (a *FetchCommand) Execute(args []string) error {
 			message.ReceivedTime = received
 			message.PacketSize = len(bytes)
 
-			log.Printf("> %d", message.ReceivedTime)
 			pipelineRoot.Publish(message)
 		}
 
@@ -159,7 +156,6 @@ func (a *FetchCommand) Execute(args []string) error {
 		if seenOldest || len(items.Data) < spanMaxBatchSize {
 			break
 		}
-
 		firstItemOfLastBatch = items.Data[0]
 	}
 	fmt.Println("done")
