@@ -9,17 +9,16 @@ import (
 
 const schema = `
 CREATE TABLE IF NOT EXISTS messages (
-  id             INTEGER PRIMARY KEY auto_increment,
+  id             BIGINT PRIMARY KEY auto_increment,
   device_id      VARCHAR(255) NOT NULL,
   received_time  BIGINT NOT NULL,
   packetsize     INTEGER NOT NULL,
-
   sysid          BIGINT NOT NULL,
-  firmware_ver   INTEGER NOT NULL,
+  firmware_ver   BIGINT NOT NULL,
   uptime         BIGINT NOT NULL,
   boardtemp      REAL NOT NULL,
   board_rel_hum  REAL NOT NULL,
-  status         INTEGER NOT NULL,
+  status         BIGINT NOT NULL,
 
   gpstimestamp  REAL NOT NULL,
   lon           REAL NOT NULL,
@@ -32,12 +31,12 @@ CREATE TABLE IF NOT EXISTS messages (
   sensor2aux    INTEGER NOT NULL,
   sensor3work   INTEGER NOT NULL,
   sensor3aux    INTEGER NOT NULL,
-  afe3_temp_raw   INTEGER NOT NULL,
+  afe3_temp_raw INTEGER NOT NULL,
 
-  no2_ppb         REAL NOT NULL,
-  o3_ppb          REAL NOT NULL,
-  no_ppb          REAL NOT NULL,
-  afe3_temp_value REAL NOT NULL,
+  no2_ppb         DOUBLE NOT NULL,
+  o3_ppb          DOUBLE NOT NULL,
+  no_ppb          DOUBLE NOT NULL,
+  afe3_temp_value DOUBLE NOT NULL,
 
   opcpma        INTEGER NOT NULL,
   opcpmb        INTEGER NOT NULL,
@@ -84,7 +83,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS cal (
   id                    INTEGER PRIMARY KEY auto_increment,
   device_id             VARCHAR(255) NOT NULL,
-  sysid                 INTEGER NOT NULL,
+  sysid                 BIGINT NOT NULL,
   collection_id         VARCHAR(255) NOT NULL,
   valid_from            DATETIME NOT NULL,
 
@@ -120,8 +119,6 @@ CREATE TABLE IF NOT EXISTS cal (
   sensor3_ae_0           REAL NOT NULL,
   sensor3_pcb_gain       REAL NOT NULL,
   sensor3_we_sensitivity REAL NOT NULL,
-
-  FOREIGN KEY(device_id) REFERENCES devices(id),
 
   UNIQUE(device_id, collection_id, afe_serial, valid_from)
 );
