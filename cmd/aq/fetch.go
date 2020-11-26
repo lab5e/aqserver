@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"strconv"
 	"time"
 
 	"github.com/antihax/optional"
+	"github.com/lab5e/aqserver/pkg/model"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/pipeline/calculate"
 	"github.com/lab5e/aqserver/pkg/pipeline/persist"
@@ -17,7 +19,7 @@ import (
 
 // FetchCommand fetches backlog of data
 type FetchCommand struct {
-	PageSize int32 `short:"p" long:"page-size" description:"Number of rows to fetch per page" default:"500"`
+	StopAt int64 `long:"stop-at" description:"Timestamp of oldest message we should fetch" default:"0"`
 }
 
 func init() {
@@ -27,6 +29,10 @@ func init() {
 		"Fetch historical sensor data from Horde server",
 		&FetchCommand{})
 }
+
+const (
+	spanMaxBatchSize = 500
+)
 
 // Execute ...
 func (a *FetchCommand) Execute(args []string) error {
@@ -38,6 +44,24 @@ func (a *FetchCommand) Execute(args []string) error {
 
 	// Load the calibration data from dir to ensure we have latest
 	loadCalibrationData(db, opt.CalibrationDataDir)
+
+	// Find last seen record
+	lastReceived := fmt.Sprintf("%d", time.Now().Unix()*1000)
+
+	if a.StopAt == 0 {
+		lastMessage, err := db.ListMessages(0, 1)
+		if err != nil {
+			log.Fatalf("Unable to list messages: %v", err)
+		}
+
+		if len(lastMessage) == 1 {
+			// I'm assuming we have to add an entire second of data here
+			// in order to make up for the API not having millisecond
+			// resolution?
+			a.StopAt = lastMessage[0].ReceivedTime
+			log.Printf("Will fetch back to %d", a.StopAt)
+		}
+	}
 
 	// Set up pipeline
 	pipelineRoot := pipeline.New(db)
@@ -58,86 +82,88 @@ func (a *FetchCommand) Execute(args []string) error {
 		})
 
 	log.Printf("Listing collection")
-	totalCount := 0
-	batchCount := 0
 
-	beginningOfTime := optional.NewString("1582900000000")
+	total := 0
+	seenOldest := false
 
-	var lastItem spanclient.OutputDataMessage
-	lastTime := timeToMilliseconds(time.Now())
+	// last item of next batch is first item of previous batch
+	firstItemOfLastBatch := spanclient.OutputDataMessage{}
+
 	for {
+		options := &spanclient.ListCollectionDataOpts{
+			// Do not set limit
+			Start: optional.NewString("0"),
+			End:   optional.NewString(lastReceived),
+		}
 
-		items, _, err := client.CollectionsApi.ListCollectionData(ctx, opt.SpanCollectionID, &spanclient.ListCollectionDataOpts{
-			Limit: optional.NewInt32(a.PageSize),
-			Start: beginningOfTime,
-			End:   optional.NewString(fmt.Sprint(lastTime)),
-		})
+		start := time.Now()
+		items, _, err := client.CollectionsApi.ListCollectionData(ctx, opt.SpanCollectionID, options)
 		if err != nil {
-			return fmt.Errorf("Unable to list collection '%s': %w", opt.SpanCollectionID, err)
+			return err
+		}
+		duration := time.Since(start)
+
+		// The oldest item is at the top
+		lastReceived = items.Data[0].Received
+		total += len(items.Data)
+
+		msTimestamp, err := strconv.ParseInt(lastReceived, 10, 64)
+		if err != nil {
+			fmt.Println("Error converting timestamp ", lastReceived, " to a number")
 		}
 
-		log.Printf(">> %d | %s", len(items.Data), msToTime(lastTime))
+		ts := time.Unix(0, msTimestamp*int64(time.Millisecond))
+		log.Printf("Got duration='%s' %d records (%d total). Last timestamp = %s (%s)\n", duration, len(items.Data), total, ts.String(), lastReceived)
 
-		// Check if we have reached the end
-		if len(items.Data) == 0 {
-			log.Printf("last batch")
-			break
-		}
-
-		for _, item := range items.Data {
-			// Skip overlap.
-			if item.Received == lastItem.Received && item.Payload == lastItem.Payload {
-				log.Printf("Skip overlap")
+		for _, item := range reverse(items.Data) {
+			if item.Received == firstItemOfLastBatch.Received && item.Payload == firstItemOfLastBatch.Payload {
+				// This skips the overlap.  Yes, it is ugly.
 				continue
 			}
 
-			lastItem = item
-			totalCount++
-			batchCount++
-			if batchCount == 1000 {
-				log.Printf("Fetched %d records", totalCount)
-				batchCount = 0
+			received, err := strconv.ParseInt(item.Received, 10, 64)
+			if err != nil {
+				log.Printf("item without timestamp")
+				received = timeToMilliseconds(time.Now())
 			}
 
-			// // deal with item here
-			// // log.Printf("%s %s", item.Received, item.Payload)
-			// bytes, err := base64.StdEncoding.DecodeString(item.Payload)
-			// if err != nil {
-			// 	log.Printf("Failed to decode base64 encoded payload len=%d: %v", len(item.Payload), err)
-			// 	continue
-			// }
+			if received <= a.StopAt {
+				seenOldest = true
+				log.Printf("Hit limit at %d", a.StopAt)
+				break
+			}
 
-			// pb, err := model.ProtobufFromData(bytes)
-			// if err != nil {
-			// 	log.Printf("Failed to unmarshal protobuf len=%d: %v", len(bytes), err)
-			// 	continue
-			// }
+			bytes, err := base64.StdEncoding.DecodeString(item.Payload)
+			if err != nil {
+				log.Printf("error base64-decoding payload='%s': %v", item.Payload, err)
+				continue
+			}
 
-			// m := model.MessageFromProtobuf(pb)
-			// if m == nil {
-			// 	log.Printf("Unable to create Message from protobuf")
-			// 	continue
-			// }
+			pb, err := model.ProtobufFromData(bytes)
+			if err != nil {
+				log.Printf("error protobuf-decoding payload='%s': %v", item.Payload, err)
+				continue
+			}
 
-			// m.DeviceID = item.Device.DeviceId
-			// m.ReceivedTime, err = strconv.ParseInt(item.Received, 10, 64)
-			// if err != nil {
-			// 	m.ReceivedTime = time.Now().UnixNano() / int64(time.Millisecond)
-			// }
-			// m.PacketSize = len(bytes)
+			message := model.MessageFromProtobuf(pb)
+			message.DeviceID = item.Device.DeviceId
+			message.ReceivedTime = received
+			message.PacketSize = len(bytes)
 
-			// pipelineRoot.Publish(m)
+			log.Printf("> %d", message.ReceivedTime)
+			pipelineRoot.Publish(message)
 		}
 
-		t, err := strconv.ParseInt(items.Data[len(items.Data)-1].Received, 10, 64)
-		if err != nil {
-			log.Fatalf("Error reading timestamp: %v", err)
+		// Check if last batch was partially filled or if we have seen
+		// the oldest message we're supposed to fetch.
+		if seenOldest || len(items.Data) < spanMaxBatchSize {
+			break
 		}
 
-		lastTime = t
+		firstItemOfLastBatch = items.Data[0]
 	}
+	fmt.Println("done")
 
-	log.Printf("Fetched a total of %d messages", totalCount)
 	return nil
 }
 
@@ -147,4 +173,16 @@ func timeToMilliseconds(t time.Time) int64 {
 
 func millisecondsToTime(ms int64) time.Time {
 	return time.Unix(ms/1000, 0)
+}
+
+func reverse(s []spanclient.OutputDataMessage) []spanclient.OutputDataMessage {
+	a := make([]spanclient.OutputDataMessage, len(s))
+	copy(a, s)
+
+	for i := len(a)/2 - 1; i >= 0; i-- {
+		opp := len(a) - 1 - i
+		a[i], a[opp] = a[opp], a[i]
+	}
+
+	return a
 }
