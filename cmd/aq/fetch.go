@@ -13,7 +13,6 @@ import (
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/pipeline/calculate"
 	"github.com/lab5e/aqserver/pkg/pipeline/persist"
-	"github.com/lab5e/aqserver/pkg/store/sqlitestore"
 	"github.com/lab5e/spanclient-go/v4"
 )
 
@@ -36,7 +35,7 @@ const (
 
 // Execute ...
 func (a *FetchCommand) Execute(args []string) error {
-	db, err := sqlitestore.New(opt.DBFilename)
+	db, err := getDB()
 	if err != nil {
 		log.Fatalf("Unable to open or create database file '%s': %v", opt.DBFilename, err)
 	}

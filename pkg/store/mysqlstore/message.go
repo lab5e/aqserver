@@ -3,7 +3,7 @@ package mysqlstore
 import (
 	"math"
 
-	"github.com/ExploratoryEngineering/air-quality-sensor-node/server/pkg/model"
+	"github.com/lab5e/aqserver/pkg/model"
 )
 
 // cleanFloat takes care of normalizing floats that are infinite or
@@ -23,9 +23,6 @@ func cleanFloat(f *float64) {
 
 // PutMessage ...
 func (s *MySQLStore) PutMessage(m *model.Message) (int64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	// TODO(borud): If these values are not cleaned up they will
 	// result in NULLs and NaNs in the database.
 	cleanFloat(&m.NO2PPB)
@@ -168,9 +165,6 @@ func (s *MySQLStore) PutMessage(m *model.Message) (int64, error) {
 
 // GetMessage ...
 func (s *MySQLStore) GetMessage(id int64) (*model.Message, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var m model.Message
 	err := s.db.QueryRowx("SELECT * FROM messages WHERE id = ?", id).StructScan(&m)
 	if err != nil {
@@ -181,9 +175,6 @@ func (s *MySQLStore) GetMessage(id int64) (*model.Message, error) {
 
 // ListMessages ...
 func (s *MySQLStore) ListMessages(offset int, limit int) ([]model.Message, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var msgs []model.Message
 	err := s.db.Select(&msgs, "SELECT * FROM messages ORDER BY received_time DESC LIMIT ? OFFSET ?", limit, offset)
 	return msgs, err
@@ -191,9 +182,6 @@ func (s *MySQLStore) ListMessages(offset int, limit int) ([]model.Message, error
 
 // ListMessagesByDate ...
 func (s *MySQLStore) ListMessagesByDate(from int64, to int64) ([]model.Message, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var msgs []model.Message
 	err := s.db.Select(&msgs, "SELECT * FROM messages WHERE received_time >= ? AND received_time < ? ORDER BY received_time", from, to)
 	return msgs, err
@@ -201,9 +189,6 @@ func (s *MySQLStore) ListMessagesByDate(from int64, to int64) ([]model.Message, 
 
 // ListDeviceMessagesByDate ...
 func (s *MySQLStore) ListDeviceMessagesByDate(deviceID string, from int64, to int64) ([]model.Message, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	var msgs []model.Message
 	err := s.db.Select(&msgs, "SELECT * FROM messages WHERE device_id = ? AND received_time >= ? AND received_time < ? ORDER BY received_time", deviceID, from, to)
 	return msgs, err

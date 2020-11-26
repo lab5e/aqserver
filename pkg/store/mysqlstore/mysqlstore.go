@@ -2,7 +2,6 @@ package mysqlstore
 
 import (
 	"log"
-	"sync"
 
 	// load mySQL driver
 	_ "github.com/go-sql-driver/mysql"
@@ -11,15 +10,15 @@ import (
 
 // MySQLStore ...
 type MySQLStore struct {
-	mu sync.Mutex
-	db *sqlx.DB
+	connectString string
+	db            *sqlx.DB
 }
 
-// New creates new Store backed by SQLite3
-func New(dbFile string) (*MySQLStore, error) {
+const defaultConnectString = "root:secret@(localhost:3306)/foobar?parseTime=true"
 
-	log.Print("Connecting to " + "{username}:{password}@({server}:{port})/{database}?parseTime=true")
-	d, err := sqlx.Connect("mysql", "{username}:{password}@({server}:{port})/{database}?parseTime=true")
+// New creates new Store backed by SQLite3
+func New(connectString string) (*MySQLStore, error) {
+	d, err := sqlx.Connect("mysql", connectString)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,12 +29,13 @@ func New(dbFile string) (*MySQLStore, error) {
 	}
 	createSchema(d)
 
-	return &MySQLStore{db: d}, nil
+	return &MySQLStore{
+		db:            d,
+		connectString: connectString,
+	}, nil
 }
 
 // Close ...
 func (s *MySQLStore) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.db.Close()
 }
