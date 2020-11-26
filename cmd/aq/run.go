@@ -13,7 +13,6 @@ import (
 	"github.com/lab5e/aqserver/pkg/pipeline/pipelog"
 	"github.com/lab5e/aqserver/pkg/pipeline/pipemqtt"
 	"github.com/lab5e/aqserver/pkg/pipeline/stream"
-	"github.com/lab5e/aqserver/pkg/store/sqlitestore"
 )
 
 const (
@@ -61,7 +60,7 @@ func (a *RunCommand) startSpanListener(r pipeline.Pipeline) listener.Listener {
 // Execute ...
 func (a *RunCommand) Execute(args []string) error {
 	// Set up persistence
-	db, err := sqlitestore.New(opt.DBFilename)
+	db, err := getDB()
 	if err != nil {
 		log.Fatalf("Unable to open or create database file '%s': %v", opt.DBFilename, err)
 	}

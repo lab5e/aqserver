@@ -6,8 +6,6 @@ package main
 import (
 	"fmt"
 	"log"
-
-	"github.com/lab5e/aqserver/pkg/store/sqlitestore"
 )
 
 // ListCommand defines the command line parameters for list command
@@ -25,7 +23,7 @@ func init() {
 
 // Execute runs the list command
 func (a *ListCommand) Execute(args []string) error {
-	db, err := sqlitestore.New(opt.DBFilename)
+	db, err := getDB()
 	defer db.Close()
 
 	cals, err := db.ListCals(a.Offset, a.Limit)

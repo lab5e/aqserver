@@ -7,7 +7,6 @@ import (
 	"log"
 
 	"github.com/lab5e/aqserver/pkg/model"
-	"github.com/lab5e/aqserver/pkg/store/sqlitestore"
 )
 
 // ImportCommand defines the command line parameters for import command.
@@ -40,7 +39,7 @@ func (a *ImportCommand) Execute(args []string) error {
 }
 
 func (a *ImportCommand) importFiles(files []string) {
-	db, err := sqlitestore.New(opt.DBFilename)
+	db, err := getDB()
 	if err != nil {
 		log.Fatalf("Unable to open or create database: %v", err)
 	}
