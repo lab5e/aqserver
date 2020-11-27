@@ -1,24 +1,25 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
+	"fmt"
 	"log"
+	"strconv"
 	"time"
 
+	"github.com/antihax/optional"
 	"github.com/lab5e/aqserver/pkg/model"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/pipeline/calculate"
 	"github.com/lab5e/aqserver/pkg/pipeline/persist"
-	"github.com/lab5e/aqserver/pkg/store/sqlitestore"
-	"github.com/telenordigital/nbiot-go"
+	"github.com/lab5e/spanclient-go/v4"
 )
 
 // FetchCommand fetches backlog of data
 type FetchCommand struct {
-	PageSize int `short:"p" long:"page-size" description:"Number of rows to fetch per page" default:"250"`
+	StopAt int64 `long:"stop-at" description:"Timestamp of oldest message we should fetch" default:"0"`
 }
-
-// For this application we say that time begins on 2020-03-25
-var beginningOfTime = int64(1585094400000)
 
 func init() {
 	parser.AddCommand(
@@ -28,91 +29,155 @@ func init() {
 		&FetchCommand{})
 }
 
+const (
+	spanMaxBatchSize = 500
+)
+
 // Execute ...
 func (a *FetchCommand) Execute(args []string) error {
-	client, err := nbiot.New()
+	db, err := getDB()
 	if err != nil {
-		return err
-	}
-
-	db, err := sqlitestore.New(options.DBFilename)
-	if err != nil {
-		log.Fatalf("Unable to open or create database file '%s': %v", options.DBFilename, err)
+		log.Fatalf("Unable to open or create database file '%s': %v", opt.DBFilename, err)
 	}
 	defer db.Close()
 
 	// Load the calibration data from dir to ensure we have latest
-	loadCalibrationData(db, options.CalibrationDataDir)
+	loadCalibrationData(db, opt.CalibrationDataDir)
 
-	data, err := db.ListMessages(0, 1)
-	if err != nil {
-		log.Fatalf("Unable to list messages: %v", err)
-	}
+	// Find last seen record
+	lastReceived := fmt.Sprintf("%d", time.Now().Unix()*1000)
 
-	if len(data) == 1 {
-		// I'm assuming we have to add an entire second of data here
-		// in order to make up for the API not having millisecond
-		// resolution?
-		beginningOfTime = data[0].ReceivedTime + 1
-		log.Printf("Will fetch back to %s", msToTime(beginningOfTime))
+	if a.StopAt == 0 {
+		lastMessage, err := db.ListMessages(0, 1)
+		if err != nil {
+			log.Fatalf("Unable to list messages: %v", err)
+		}
+
+		if len(lastMessage) == 1 {
+			// I'm assuming we have to add an entire second of data here
+			// in order to make up for the API not having millisecond
+			// resolution?
+			a.StopAt = lastMessage[0].ReceivedTime
+		}
 	}
+	log.Printf("Will fetch back to %d", a.StopAt)
 
 	// Set up pipeline
-	pipelineRoot := pipeline.New(&options, db)
-	pipelineCalc := calculate.New(&options, db)
-	pipelinePersist := persist.New(&options, db)
+	pipelineRoot := pipeline.New(db)
+	pipelineCalc := calculate.New(db)
+	pipelinePersist := persist.New(db)
 
 	pipelineRoot.AddNext(pipelineCalc)
 	pipelineCalc.AddNext(pipelinePersist)
 
-	var since = beginningOfTime
-	var until = time.Now().UnixNano() / int64(time.Millisecond)
-	var count = 0
-	var countTotal = 0
+	// TODO(borud): here be dragons
+	configuration := spanclient.NewConfiguration()
+	client := spanclient.NewAPIClient(configuration)
 
-	// CollectionData coming from horde arrives in descending order
-	// from Received.  So we have to work our way backwards.  We do
-	// this by starting with until being equal to "now" and then set
-	// the next until value from the last entry we got.
+	ctx := context.WithValue(context.Background(), spanclient.ContextAPIKey,
+		spanclient.APIKey{
+			Key:    opt.SpanAPIToken,
+			Prefix: "",
+		})
+
+	total := 0
+	seenOldest := false
+
+	// last item of next batch is first item of previous batch
+	firstItemOfLastBatch := spanclient.OutputDataMessage{}
+
 	for {
-		data, err := client.CollectionData(options.HordeCollection, msToTime(since), msToTime(until), a.PageSize)
-		if err != nil {
-			log.Fatalf("Error while reading data: %v", err)
+		options := &spanclient.ListCollectionDataOpts{
+			// Do not set limit
+			Start: optional.NewString("0"),
+			End:   optional.NewString(lastReceived),
 		}
 
-		if len(data) == 0 {
+		start := time.Now()
+		items, _, err := client.CollectionsApi.ListCollectionData(ctx, opt.SpanCollectionID, options)
+		if err != nil {
+			return err
+		}
+		duration := time.Since(start)
+
+		// The oldest item is at the top
+		lastReceived = items.Data[0].Received
+		total += len(items.Data)
+
+		msTimestamp, err := strconv.ParseInt(lastReceived, 10, 64)
+		if err != nil {
+			fmt.Println("Error converting timestamp ", lastReceived, " to a number")
+		}
+
+		ts := time.Unix(0, msTimestamp*int64(time.Millisecond))
+		log.Printf("fetch duration='%s' %d records (%d total). Last timestamp = %s (%s)\n", duration, len(items.Data), total, ts.String(), lastReceived)
+
+		for _, item := range reverse(items.Data) {
+			if item.Received == firstItemOfLastBatch.Received && item.Payload == firstItemOfLastBatch.Payload {
+				// This skips the overlap.  Yes, it is ugly.
+				continue
+			}
+
+			received, err := strconv.ParseInt(item.Received, 10, 64)
+			if err != nil {
+				log.Printf("item without timestamp")
+				received = timeToMilliseconds(time.Now())
+			}
+
+			if received <= a.StopAt {
+				seenOldest = true
+				log.Printf("Hit limit at %d", a.StopAt)
+				break
+			}
+
+			bytes, err := base64.StdEncoding.DecodeString(item.Payload)
+			if err != nil {
+				log.Printf("error base64-decoding payload='%s': %v", item.Payload, err)
+				continue
+			}
+
+			pb, err := model.ProtobufFromData(bytes)
+			if err != nil {
+				log.Printf("error protobuf-decoding payload='%s': %v", item.Payload, err)
+				continue
+			}
+
+			message := model.MessageFromProtobuf(pb)
+			message.DeviceID = item.Device.DeviceId
+			message.ReceivedTime = received
+			message.PacketSize = len(bytes)
+
+			pipelineRoot.Publish(message)
+		}
+
+		// Check if last batch was partially filled or if we have seen
+		// the oldest message we're supposed to fetch.
+		if seenOldest || len(items.Data) < spanMaxBatchSize {
 			break
 		}
+		firstItemOfLastBatch = items.Data[0]
+	}
+	fmt.Println("done")
 
-		for _, d := range data {
-			pb, err := model.ProtobufFromData(d.Payload)
-			if err != nil {
-				log.Printf("Failed to decode protobuffer len=%d: %v", len(d.Payload), err)
-				continue
-			}
+	return nil
+}
 
-			m := model.MessageFromProtobuf(pb)
-			if m == nil {
-				log.Printf("Unable to create Message from protobuf")
-				continue
-			}
+func timeToMilliseconds(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond)
+}
 
-			m.DeviceID = d.Device.ID
-			m.ReceivedTime = d.Received
-			m.PacketSize = len(d.Payload)
+func millisecondsToTime(ms int64) time.Time {
+	return time.Unix(ms/1000, 0)
+}
 
-			pipelineRoot.Publish(m)
-			count++
-			countTotal++
-		}
+func reverse(s []spanclient.OutputDataMessage) []spanclient.OutputDataMessage {
+	a := make([]spanclient.OutputDataMessage, len(s))
+	copy(a, s)
 
-		until = data[len(data)-1].Received - 1
-		if count >= 500 {
-			log.Printf("Imported %d records...", countTotal)
-			count = 0
-		}
+	for i := len(a)/2 - 1; i >= 0; i-- {
+		opp := len(a) - 1 - i
+		a[i], a[opp] = a[opp], a[i]
 	}
 
-	log.Printf("Fetched a total of %d messages", countTotal)
-	return nil
+	return a
 }

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/lab5e/aqserver/pkg/model"
-	"github.com/lab5e/aqserver/pkg/opts"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/store"
 )
@@ -14,7 +13,6 @@ import (
 // Calculate holds the configuration the calculation processor.
 type Calculate struct {
 	next             pipeline.Pipeline
-	opts             *opts.Opts
 	db               store.Store
 	calibrationCache map[uint64][]model.Cal
 	cacheRefreshChan chan bool
@@ -27,9 +25,8 @@ const (
 )
 
 // New creates a new instance of Calculate pipeline element
-func New(opts *opts.Opts, db store.Store) *Calculate {
+func New(db store.Store) *Calculate {
 	c := &Calculate{
-		opts:             opts,
 		db:               db,
 		cacheRefreshChan: make(chan bool),
 	}

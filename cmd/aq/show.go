@@ -7,7 +7,6 @@ import (
 	"log"
 
 	"github.com/lab5e/aqserver/pkg/model"
-	"github.com/lab5e/aqserver/pkg/store/sqlitestore"
 )
 
 // ShowCommand defines the command line parameters for show command
@@ -24,7 +23,7 @@ func init() {
 
 // Execute runs the list command
 func (a *ShowCommand) Execute(args []string) error {
-	db, err := sqlitestore.New(options.DBFilename)
+	db, err := getDB()
 	if err != nil {
 		return err
 	}

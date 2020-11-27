@@ -3,6 +3,7 @@ all: gen test revive vet build
 clean:
 	@rm -f aq.db*
 	@rm -rf bin
+	@rm -rf logs
 
 build: aq
 
@@ -28,6 +29,8 @@ proto-image:
 	@buf build -o proto/aq.json
 
 dep:
-	@go get -u github.com/bufbuild/buf/cmd/buf github.com/mgechev/revive
+	@go get -u \
+		github.com/bufbuild/buf/cmd/buf \
+		github.com/mgechev/revive
 	@go mod tidy
 
