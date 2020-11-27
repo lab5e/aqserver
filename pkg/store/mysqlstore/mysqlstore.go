@@ -14,8 +14,6 @@ type MySQLStore struct {
 	db            *sqlx.DB
 }
 
-const defaultConnectString = "root:secret@(localhost:3306)/foobar?parseTime=true"
-
 // New creates new Store backed by SQLite3
 func New(connectString string) (*MySQLStore, error) {
 	d, err := sqlx.Connect("mysql", connectString)
