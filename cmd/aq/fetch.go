@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -29,10 +28,6 @@ func init() {
 		&FetchCommand{})
 }
 
-const (
-	spanMaxBatchSize = 500
-)
-
 // Execute ...
 func (a *FetchCommand) Execute(args []string) error {
 	db, err := getDB()
@@ -43,9 +38,6 @@ func (a *FetchCommand) Execute(args []string) error {
 
 	// Load the calibration data from dir to ensure we have latest
 	loadCalibrationData(db, opt.CalibrationDataDir)
-
-	// Find last seen record
-	lastReceived := fmt.Sprintf("%d", time.Now().Unix()*1000)
 
 	if a.StopAt == 0 {
 		lastMessage, err := db.ListMessages(0, 1)
@@ -70,27 +62,19 @@ func (a *FetchCommand) Execute(args []string) error {
 	pipelineRoot.AddNext(pipelineCalc)
 	pipelineCalc.AddNext(pipelinePersist)
 
-	// TODO(borud): here be dragons
 	configuration := spanclient.NewConfiguration()
 	client := spanclient.NewAPIClient(configuration)
 
-	ctx := context.WithValue(context.Background(), spanclient.ContextAPIKey,
-		spanclient.APIKey{
-			Key:    opt.SpanAPIToken,
-			Prefix: "",
-		})
+	ctx := spanclient.NewAuthContext(opt.SpanAPIToken)
 
 	total := 0
-	seenOldest := false
 
-	// last item of next batch is first item of previous batch
-	firstItemOfLastBatch := spanclient.OutputDataMessage{}
-
+	lastMessageID := ""
 	for {
 		options := &spanclient.ListCollectionDataOpts{
 			// Do not set limit
-			Start: optional.NewString("0"),
-			End:   optional.NewString(lastReceived),
+			Limit:  optional.NewInt32(500),
+			Offset: optional.NewString(lastMessageID),
 		}
 
 		start := time.Now()
@@ -101,33 +85,26 @@ func (a *FetchCommand) Execute(args []string) error {
 		duration := time.Since(start)
 
 		// The oldest item is at the top
-		lastReceived = items.Data[0].Received
 		total += len(items.Data)
 
-		msTimestamp, err := strconv.ParseInt(lastReceived, 10, 64)
-		if err != nil {
-			fmt.Println("Error converting timestamp ", lastReceived, " to a number")
+		if len(items.Data) == 0 {
+			// No more data
+			fmt.Println("done")
+			return nil
 		}
+		log.Printf("fetch duration='%s' %d records (%d total). Last offset = %s\n", duration, len(items.Data), total, lastMessageID)
 
-		ts := time.Unix(0, msTimestamp*int64(time.Millisecond))
-		log.Printf("fetch duration='%s' %d records (%d total). Last timestamp = %s (%s)\n", duration, len(items.Data), total, ts.String(), lastReceived)
-
-		for _, item := range reverse(items.Data) {
-			if item.Received == firstItemOfLastBatch.Received && item.Payload == firstItemOfLastBatch.Payload {
-				// This skips the overlap.  Yes, it is ugly.
-				continue
-			}
-
+		for _, item := range items.Data {
+			lastMessageID = item.MessageId
 			received, err := strconv.ParseInt(item.Received, 10, 64)
 			if err != nil {
-				log.Printf("item without timestamp")
+				log.Printf("Error converting timestamp string (%s): %v", item.Received, err)
 				received = timeToMilliseconds(time.Now())
 			}
-
-			if received <= a.StopAt {
-				seenOldest = true
-				log.Printf("Hit limit at %d", a.StopAt)
-				break
+			if received < a.StopAt {
+				// Skip through the remaining items
+				fmt.Println("done")
+				return nil
 			}
 
 			bytes, err := base64.StdEncoding.DecodeString(item.Payload)
@@ -149,35 +126,9 @@ func (a *FetchCommand) Execute(args []string) error {
 
 			pipelineRoot.Publish(message)
 		}
-
-		// Check if last batch was partially filled or if we have seen
-		// the oldest message we're supposed to fetch.
-		if seenOldest || len(items.Data) < spanMaxBatchSize {
-			break
-		}
-		firstItemOfLastBatch = items.Data[0]
 	}
-	fmt.Println("done")
-
-	return nil
 }
 
 func timeToMilliseconds(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
-}
-
-func millisecondsToTime(ms int64) time.Time {
-	return time.Unix(ms/1000, 0)
-}
-
-func reverse(s []spanclient.OutputDataMessage) []spanclient.OutputDataMessage {
-	a := make([]spanclient.OutputDataMessage, len(s))
-	copy(a, s)
-
-	for i := len(a)/2 - 1; i >= 0; i-- {
-		opp := len(a) - 1 - i
-		a[i], a[opp] = a[opp], a[i]
-	}
-
-	return a
 }
