@@ -34,3 +34,8 @@ dep:
 		github.com/mgechev/revive
 	@go mod tidy
 
+count:
+	@echo "Linecounts excluding generated and third party code"
+	@gocloc --not-match-d='apipb|openapi|third_party' .
+
+
