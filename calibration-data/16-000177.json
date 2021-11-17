@@ -24,9 +24,9 @@
   "sensor2PCBGain": -0.7300000190734863,
   "sensor2WESensitivity": 0.36899998784065247,
   "sensor3WEe": 275,
-  "sensor3WE0": 1822,
+  "sensor3WE0": 20,
   "sensor3AEe": 265,
-  "sensor3AE0": 1822,
+  "sensor3AE0": 20,
   "sensor3PCBGain": 0.800000011920929,
   "sensor3WESensitivity": 0.4129999876022339
 }
