@@ -1,8 +1,8 @@
 package model
 
 import (
-	"github.com/golang/protobuf/proto"
 	aqv1 "github.com/lab5e/aqserver/pkg/aq/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // MessageFromProtobuf takes a Sample protobuffer and returns a
