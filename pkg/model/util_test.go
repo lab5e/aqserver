@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/lab5e/aqserver/pkg/aqpb"
+	aqv1 "github.com/lab5e/aqserver/pkg/aq/v1"
 	"github.com/stretchr/testify/assert"
 )
 
-var testPB = &aqpb.Sample{
+var testPB = &aqv1.Sample{
 	Sysid:             1,
 	FirmwareVersion:   2,
 	Uptime:            3,

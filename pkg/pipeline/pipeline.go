@@ -1,3 +1,4 @@
+// Package pipeline defines the data pipeline interface.
 package pipeline
 
 import (

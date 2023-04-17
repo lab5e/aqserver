@@ -2,10 +2,7 @@
 // Protocol buffer definitions for 4 gen TKAQ units.
 //
 syntax = "proto3";
-
-package aqpb;
-
-option go_package = ".;aqpb";
+package aq.v1;
 
 // Sample -- represents one packet of data from the air quality unit.
 // When extending this keep in mind that dealing with protobuffers on

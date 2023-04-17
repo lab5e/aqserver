@@ -1,3 +1,4 @@
+// Package store defines the storage API.
 package store
 
 import (

@@ -1,3 +1,4 @@
+// Package pipelog implements the log step of the pipeline
 package pipelog
 
 import (

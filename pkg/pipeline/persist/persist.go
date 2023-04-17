@@ -1,3 +1,4 @@
+// Package persist implements the persistence stage of the pipeline.
 package persist
 
 import (

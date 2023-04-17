@@ -1,3 +1,4 @@
+// Package util contains various utilities that belong nowhere else.
 package util
 
 import (
@@ -8,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lab5e/aqserver/pkg/aqpb"
+	aqv1 "github.com/lab5e/aqserver/pkg/aq/v1"
 	"github.com/lab5e/aqserver/pkg/model"
 
 	"github.com/lab5e/spanclient-go/v4"
@@ -34,10 +35,10 @@ const (
 
 var (
 	// ErrMessageWasKeepalive indicates that the message received was a keepalive
-	ErrMessageWasKeepalive = errors.New("Message was keepalive")
+	ErrMessageWasKeepalive = errors.New("message was keepalive")
 
 	// ErrMessageWasNotData indicates that the messge received was something other than data or keepalive
-	ErrMessageWasNotData = errors.New("Message was not data")
+	ErrMessageWasNotData = errors.New("message was not data")
 )
 
 // DecodePayload peels off layers of protocol to reveal the golden
@@ -65,10 +66,10 @@ func DecodePayload(rawPayload []byte) (*model.Message, error) {
 	}
 
 	// Decode Protobuffer
-	var sample = &aqpb.Sample{}
+	var sample = &aqv1.Sample{}
 	err = proto.Unmarshal(bytePayload, sample)
 	if err != nil {
-		return &model.Message{}, fmt.Errorf("Protobuf decode failed: %w", err)
+		return &model.Message{}, fmt.Errorf("protobuf decode failed: %w", err)
 	}
 
 	// Convert to model.Message and put in packet size and timestamp

@@ -1,0 +1,9 @@
+version: v1
+name: buf.build/lab5e/aq
+lint:
+  use:
+    - DEFAULT
+     
+breaking:
+  use:
+    - FILE

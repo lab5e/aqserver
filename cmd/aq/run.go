@@ -19,8 +19,7 @@ const (
 	circularBufferLength = 100
 )
 
-// RunCommand ...
-type RunCommand struct {
+type serverCmd struct {
 	// Webserver options
 	WebListenAddr   string `long:"web-listen-address" description:"Listen address for webserver" default:":8888" value-name:"<[host]:port>"`
 	WebAccessLogDir string `long:"web-access-log-dir" description:"Directory for access logs" default:"./logs" value-name:"<dir>"`
@@ -36,17 +35,9 @@ type RunCommand struct {
 	UDPBufferSize    int    `long:"udp-buffer-size" description:"Size of UDP read buffer" default:"1024" value-name:"<num bytes>"`
 }
 
-func init() {
-	parser.AddCommand(
-		"run",
-		"Run server",
-		"Run server",
-		&RunCommand{})
-}
-
 var listeners []listener.Listener
 
-func (a *RunCommand) startSpanListener(r pipeline.Pipeline) listener.Listener {
+func (a *serverCmd) startSpanListener(r pipeline.Pipeline) listener.Listener {
 	log.Printf("Starting Span listener, listening to collection='%s'", opt.SpanCollectionID)
 	spanListener := spanlistener.New(r, opt.SpanAPIToken, opt.SpanCollectionID)
 	err := spanListener.Start()
@@ -58,7 +49,7 @@ func (a *RunCommand) startSpanListener(r pipeline.Pipeline) listener.Listener {
 }
 
 // Execute ...
-func (a *RunCommand) Execute(args []string) error {
+func (a *serverCmd) Execute(args []string) error {
 	// Set up persistence
 	db, err := getDB()
 	if err != nil {

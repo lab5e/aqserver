@@ -2,12 +2,12 @@ package model
 
 import (
 	"github.com/golang/protobuf/proto"
-	"github.com/lab5e/aqserver/pkg/aqpb"
+	aqv1 "github.com/lab5e/aqserver/pkg/aq/v1"
 )
 
 // MessageFromProtobuf takes a Sample protobuffer and returns a
 // Message
-func MessageFromProtobuf(s *aqpb.Sample) *Message {
+func MessageFromProtobuf(s *aqv1.Sample) *Message {
 	return &Message{
 		// Board fields
 		SysID:            s.Sysid,
@@ -74,12 +74,12 @@ func MessageFromProtobuf(s *aqpb.Sample) *Message {
 }
 
 // ProtobufFromData unmarshals a protobuffer from a byte slice
-func ProtobufFromData(buf []byte) (*aqpb.Sample, error) {
-	pb := aqpb.Sample{}
+func ProtobufFromData(buf []byte) (*aqv1.Sample, error) {
+	pb := aqv1.Sample{}
 	return &pb, proto.Unmarshal(buf, &pb)
 }
 
-// DataFromProtobuf marshals a aqpb.Sample into a byte slice
-func DataFromProtobuf(pb *aqpb.Sample) ([]byte, error) {
+// DataFromProtobuf marshals a aqv1.Sample into a byte slice
+func DataFromProtobuf(pb *aqv1.Sample) ([]byte, error) {
 	return proto.Marshal(pb)
 }

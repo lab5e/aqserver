@@ -1,4 +1,13 @@
-version: v1beta1
+version: v1
+managed:
+  enabled: true
+  optimize_for: CODE_SIZE
+
+  go_package_prefix:
+    default: github.com/lab5e/aq
+
 plugins:
-  - name: go
-    out: pkg/aqpb
+  - plugin: buf.build/protocolbuffers/go
+    out: gen
+    opt:
+      - paths=source_relative

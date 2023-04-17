@@ -1,3 +1,4 @@
+// Package sqlitestore implements an SQLite backed Store.
 package sqlitestore
 
 import (

@@ -1,3 +1,4 @@
+// Package model contains all of the model data types.
 package model
 
 import (

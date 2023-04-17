@@ -13,7 +13,6 @@ Per default the air quality server comes with a built in SQLite
 database so that there is no need to manage a separate database
 instance for casual use.
 
-
 ## Building
 
 In order to build aq server you need Go version 1.15 or newer.  *It
@@ -22,10 +21,10 @@ older versions*.
 
 The first time you build you need to make sure that the required
 dependencies are installed.  You can do this simply by issuing the
-command 
+command
 
     make dep
-	
+
 Then you can build the project with
 
     make
@@ -34,5 +33,3 @@ Then you can build the project with
 works on Windows*.
 
 This will produce a binary `bin/aq`.
-
-

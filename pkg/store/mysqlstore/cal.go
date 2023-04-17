@@ -1,3 +1,4 @@
+// Package mysqlstore implements MySQL based store.
 package mysqlstore
 
 import (

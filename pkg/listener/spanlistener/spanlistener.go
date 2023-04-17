@@ -1,3 +1,4 @@
+// Package spanlistener implements the Span listener.
 package spanlistener
 
 import (

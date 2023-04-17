@@ -1,3 +1,4 @@
+// Package calculate applies the calibration data.
 package calculate
 
 import (

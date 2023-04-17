@@ -1,6 +1,5 @@
 // The parse command is mostly there to check that we can parse the
 // CSV file(s) and visually check that a calibration file looks okay.
-//
 package main
 
 import (
@@ -8,22 +7,18 @@ import (
 	"log"
 )
 
-// ListCommand defines the command line parameters for list command
-type ListCommand struct {
+// listCmd defines the command line parameters for list command
+type listCmd struct {
 	Offset int `long:"offset" description:"offset from lowest id" default:"0"`
 	Limit  int `long:"limit" description:"Number of entries to show" default:"200"`
 }
 
-func init() {
-	parser.AddCommand("list",
-		"List calibration data",
-		"List calibration data",
-		&ListCommand{})
-}
-
 // Execute runs the list command
-func (a *ListCommand) Execute(args []string) error {
+func (a *listCmd) Execute(args []string) error {
 	db, err := getDB()
+	if err != nil {
+		return err
+	}
 	defer db.Close()
 
 	cals, err := db.ListCals(a.Offset, a.Limit)

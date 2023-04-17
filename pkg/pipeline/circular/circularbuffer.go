@@ -1,3 +1,4 @@
+// Package circular provides a circular buffer.
 package circular
 
 import (

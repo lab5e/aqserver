@@ -1,3 +1,4 @@
+// Package pipelinetest implements the tests for the pipeline.
 package pipelinetest
 
 import (

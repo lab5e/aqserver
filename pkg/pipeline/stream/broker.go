@@ -1,3 +1,4 @@
+// Package stream implements a simple websocket streamer.
 package stream
 
 import (

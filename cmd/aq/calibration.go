@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,6 +25,11 @@ func loadCalibrationData(db store.Store, dir string) error {
 	pattern := DefaultFilenamePattern
 
 	f := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Print(err)
+			return nil
+		}
+
 		if info.IsDir() {
 			return nil
 		}
@@ -41,7 +45,7 @@ func loadCalibrationData(db store.Store, dir string) error {
 			return nil
 		}
 
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			log.Printf("SKIP '%s', error reading : %v", path, err)
 			return err
