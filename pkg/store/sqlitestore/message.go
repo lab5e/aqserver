@@ -37,6 +37,7 @@ func (s *SqliteStore) PutMessage(m *model.Message) (int64, error) {
 	r, err := s.db.NamedExec(`
   INSERT INTO messages
     (device_id,
+     message_id,
      received_time,
      packetsize,
      sysid,
@@ -100,6 +101,7 @@ func (s *SqliteStore) PutMessage(m *model.Message) (int64, error) {
      opcbin_23,
      opcsamplevalid)
     VALUES (:device_id,
+            :message_id,
             :received_time,
             :packetsize,
             :sysid,

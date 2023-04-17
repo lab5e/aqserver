@@ -14,6 +14,7 @@ const schema = `
 CREATE TABLE IF NOT EXISTS messages (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   device_id      TEXT NOT NULL,
+  message_id     TEXT NOT NULL,
   received_time  BIGINT NOT NULL,
   packetsize     INTEGER NOT NULL,
 
@@ -130,7 +131,7 @@ CREATE TABLE IF NOT EXISTS cal (
 );
 `
 
-func createSchema(db *sqlx.DB, fileName string) {
+func createSchema(db *sqlx.DB) {
 	for n, statement := range strings.Split(schema, ";") {
 		if _, err := db.Exec(statement); err != nil {
 			panic(fmt.Sprintf("Statement %d failed: \"%s\" : %s", n+1, statement, err))

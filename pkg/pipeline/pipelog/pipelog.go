@@ -20,7 +20,7 @@ func New() *Log {
 
 // Publish ...
 func (p *Log) Publish(m *model.Message) error {
-	log.Printf("Message: device='%s' messageID=%d packetSize=%d", m.DeviceID, m.ID, m.PacketSize)
+	log.Printf("Message: device='%s' id=%d spanMessageID=%s packetSize=%d", m.DeviceID, m.ID, m.MessageID, m.PacketSize)
 
 	if p.next != nil {
 		return p.next.Publish(m)

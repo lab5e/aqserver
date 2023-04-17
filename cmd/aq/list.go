@@ -14,7 +14,7 @@ type listCmd struct {
 }
 
 // Execute runs the list command
-func (a *listCmd) Execute(args []string) error {
+func (a *listCmd) Execute(_ []string) error {
 	db, err := getDB()
 	if err != nil {
 		return err

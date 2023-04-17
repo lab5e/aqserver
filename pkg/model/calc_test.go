@@ -11,7 +11,6 @@ import (
 // sensors so we can ensure the calculation is correct and that we get
 // some sensible values.  Part of the testdata should come from
 // flooding the AFE3 sensors with calibration mixtures.
-//
 var calTest = &Cal{
 	// value from deviceID '17dh0cf43jg6n4'. Measured by Thomas Langås
 	// in the lab under relatively stable conditions.  Can use 0.32 as
@@ -52,7 +51,8 @@ var messageTest = &Message{
 	AFE3TempRaw: 540375,
 }
 
-func TestCalculateSensorValues(t *testing.T) {
+func TestCalculateSensorValues(_ *testing.T) {
+	// Smoke test
 	CalculateSensorValues(messageTest, calTest)
 }
 

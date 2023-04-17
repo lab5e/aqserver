@@ -98,7 +98,10 @@ func (s *MySQLStore) DeleteCal(id int64) error {
 }
 
 // ListCals ...
-func (s *MySQLStore) ListCals(offset int, limit int) ([]model.Cal, error) {
+//
+// TODO(borud): whomever implemented this didn't actually implement this
+// correctly since it doesn't heed limit and offset.
+func (s *MySQLStore) ListCals(_ int, _ int) ([]model.Cal, error) {
 	var cals []model.Cal
 	err := s.db.Select(&cals, "SELECT * FROM cal ORDER BY device_id, valid_from ASC")
 	return cals, err

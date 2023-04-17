@@ -4,8 +4,6 @@ import (
 	"log"
 
 	"github.com/lab5e/aqserver/pkg/api"
-	"github.com/lab5e/aqserver/pkg/listener"
-	"github.com/lab5e/aqserver/pkg/listener/spanlistener"
 	"github.com/lab5e/aqserver/pkg/pipeline"
 	"github.com/lab5e/aqserver/pkg/pipeline/calculate"
 	"github.com/lab5e/aqserver/pkg/pipeline/circular"
@@ -13,6 +11,7 @@ import (
 	"github.com/lab5e/aqserver/pkg/pipeline/pipelog"
 	"github.com/lab5e/aqserver/pkg/pipeline/pipemqtt"
 	"github.com/lab5e/aqserver/pkg/pipeline/stream"
+	"github.com/lab5e/aqserver/pkg/spanlistener"
 )
 
 const (
@@ -35,12 +34,11 @@ type serverCmd struct {
 	UDPBufferSize    int    `long:"udp-buffer-size" description:"Size of UDP read buffer" default:"1024" value-name:"<num bytes>"`
 }
 
-var listeners []listener.Listener
+var listeners []spanlistener.SpanListener
 
-func (a *serverCmd) startSpanListener(r pipeline.Pipeline) listener.Listener {
+func (a *serverCmd) startSpanListener(r pipeline.Pipeline) spanlistener.SpanListener {
 	log.Printf("Starting Span listener, listening to collection='%s'", opt.SpanCollectionID)
-	spanListener := spanlistener.New(r, opt.SpanAPIToken, opt.SpanCollectionID)
-	err := spanListener.Start()
+	spanListener, err := spanlistener.Create(r, opt.SpanAPIToken, opt.SpanCollectionID)
 	if err != nil {
 		log.Fatalf("Unable to start Span listener: %v", err)
 	}
@@ -49,7 +47,7 @@ func (a *serverCmd) startSpanListener(r pipeline.Pipeline) listener.Listener {
 }
 
 // Execute ...
-func (a *serverCmd) Execute(args []string) error {
+func (a *serverCmd) Execute(_ []string) error {
 	// Set up persistence
 	db, err := getDB()
 	if err != nil {

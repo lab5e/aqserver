@@ -1,9 +1,9 @@
 package sqlitestore
 
 import (
+	"log"
 	"os"
 	"sync"
-	"log"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3" // Load sqlite3 driver
@@ -37,7 +37,7 @@ func New(dbFile string) (*SqliteStore, error) {
 
 	if !databaseFileExisted {
 		log.Printf("Creating database schema in %s", dbFile)
-		createSchema(d, cs)
+		createSchema(d)
 	}
 
 	return &SqliteStore{db: d}, nil

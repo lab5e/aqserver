@@ -1,7 +1,6 @@
 // Package pipemqtt is a very simplistic example of how to forward messages to
 // an MQTT server.  If you want to use this for production you should
 // rewrite it for more robustness.
-//
 package pipemqtt
 
 import (
@@ -29,6 +28,7 @@ func New(clientID string, password string, address string, topicPrefix string) *
 	token := client.Connect()
 
 	for !token.WaitTimeout(3 * time.Second) {
+		log.Printf("waiting for MQTT broker")
 	}
 	if err := token.Error(); err != nil {
 		log.Fatal(err)

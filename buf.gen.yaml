@@ -8,6 +8,6 @@ managed:
 
 plugins:
   - plugin: buf.build/protocolbuffers/go
-    out: gen
+    out: pkg
     opt:
       - paths=source_relative

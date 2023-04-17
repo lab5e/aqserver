@@ -9,7 +9,7 @@ import (
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
-	WriteBufferSize: 4096,
+	WriteBufferSize: 10 * 1024,
 	// We explicitly want people to be able to connect from anywhere
 	CheckOrigin: func(r *http.Request) bool { return true },
 }

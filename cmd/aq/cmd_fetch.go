@@ -18,7 +18,7 @@ import (
 type fetchCmd struct{}
 
 // Execute ...
-func (a *fetchCmd) Execute(args []string) error {
+func (a *fetchCmd) Execute(_ []string) error {
 	db, err := getDB()
 	if err != nil {
 		log.Fatalf("Unable to open or create database file '%s': %v", opt.DBFilename, err)

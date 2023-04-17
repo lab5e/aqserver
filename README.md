@@ -15,7 +15,7 @@ instance for casual use.
 
 ## Building
 
-In order to build aq server you need Go version 1.15 or newer.  *It
+In order to build aq server you need Go version 1.19 or newer.  *It
 will probably build with older versions of Go, but we do not support
 older versions*.
 
