@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	circularBufferLength = 100
+	circularBufferLength = 1000
 )
 
 type serverCmd struct {

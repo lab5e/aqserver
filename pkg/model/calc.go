@@ -19,16 +19,16 @@ var (
 	// Note AAN 803.  Included the whole table although we only need 3
 	// entries in case we will use any of these sensors in the future.
 	afe3Luts = map[string]sensorLut{
-		"CO-A4":  sensorLut{LUT: []float64{1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -0.76, -0.76 - 0.76}},
-		"CO2-B4": sensorLut{LUT: []float64{-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -3.8 - 3.8 - 3.8}},
-		"NO-A4":  sensorLut{LUT: []float64{1.48, 1.48, 1.48, 1.48, 1.48, 2.02, 1.72, 1.72, 1.72}},
-		"NO-B4":  sensorLut{LUT: []float64{1.04, 1.04, 1.04, 1.04, 1.04, 1.82, 2.0, 2.0, 2.0}},
-		"NO2-A4": sensorLut{LUT: []float64{1.09, 1.09, 1.09, 1.09, 1.09, 1.35, 3.0, 3.0, 3.0}},
-		"NO2-B4": sensorLut{LUT: []float64{0.76, 0.76, 0.76, 0.76, 0.76, 0.68, 0.23, 0.23, 0.23}},
-		"SO2-A4": sensorLut{LUT: []float64{1.15, 1.15, 1.15, 1.15, 1.15, 1.82, 3.93, 3.93, 3.93}},
-		"SO2-B4": sensorLut{LUT: []float64{0.96, 0.96, 0.96, 0.96, 0.96, 1.34, 1.10, 1.10, 1.10}},
-		"O3-A4":  sensorLut{LUT: []float64{0.75, 0.75, 0.75, 0.75, 1.28, 1.28, 1.28, 1.28 /*, no value */}},
-		"O3-B4":  sensorLut{LUT: []float64{0.77, 0.77, 0.77, 0.77, 1.56, 1.56, 1.56, 2.85 /*, no value */}},
+		"CO-A4":  {LUT: []float64{1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -0.76, -0.76 - 0.76}},
+		"CO2-B4": {LUT: []float64{-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -3.8 - 3.8 - 3.8}},
+		"NO-A4":  {LUT: []float64{1.48, 1.48, 1.48, 1.48, 1.48, 2.02, 1.72, 1.72, 1.72}},
+		"NO-B4":  {LUT: []float64{1.04, 1.04, 1.04, 1.04, 1.04, 1.82, 2.0, 2.0, 2.0}},
+		"NO2-A4": {LUT: []float64{1.09, 1.09, 1.09, 1.09, 1.09, 1.35, 3.0, 3.0, 3.0}},
+		"NO2-B4": {LUT: []float64{0.76, 0.76, 0.76, 0.76, 0.76, 0.68, 0.23, 0.23, 0.23}},
+		"SO2-A4": {LUT: []float64{1.15, 1.15, 1.15, 1.15, 1.15, 1.82, 3.93, 3.93, 3.93}},
+		"SO2-B4": {LUT: []float64{0.96, 0.96, 0.96, 0.96, 0.96, 1.34, 1.10, 1.10, 1.10}},
+		"O3-A4":  {LUT: []float64{0.75, 0.75, 0.75, 0.75, 1.28, 1.28, 1.28, 1.28 /*, no value */}},
+		"O3-B4":  {LUT: []float64{0.77, 0.77, 0.77, 0.77, 1.56, 1.56, 1.56, 2.85 /*, no value */}},
 	}
 
 	// Create correction functions for the sensors we use
@@ -46,8 +46,8 @@ func CalculateSensorValues(m *Message, cal *Cal) {
 	m.AFE3TempValue = ((float64(m.AFE3TempRaw) * afe3ScalingFactor) - cal.Vt20Offset + 0.02) * 1000.0
 
 	var sensor1TempCorrectionFactor = correctSensor1(m.AFE3TempValue)
-	var sensor2TempCorrectionFactor = correctSensor1(m.AFE3TempValue)
-	var sensor3TempCorrectionFactor = correctSensor1(m.AFE3TempValue)
+	var sensor2TempCorrectionFactor = correctSensor2(m.AFE3TempValue)
+	var sensor3TempCorrectionFactor = correctSensor3(m.AFE3TempValue)
 
 	// Sensor 1 - NO2 sensor
 	{

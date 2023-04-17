@@ -3,9 +3,9 @@ package model
 import (
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	aqv1 "github.com/lab5e/aqserver/pkg/aq/v1"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 )
 
 var testPB = &aqv1.Sample{
