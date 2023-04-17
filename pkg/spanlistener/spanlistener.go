@@ -97,6 +97,7 @@ func (s *spanListener) readDataStream() {
 
 		message := model.MessageFromProtobuf(&sample)
 		message.MessageID = odm.GetMessageId()
+		message.PacketSize = len(payload)
 		s.pipeline.Publish(message)
 	}
 }

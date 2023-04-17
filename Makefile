@@ -1,6 +1,6 @@
-default: aq listen
+default: test vet aq listen
 
-all: gen test revive vet build
+full: gen test revive vet build
 
 clean:
 	@rm -f aq.db*
@@ -30,15 +30,12 @@ test_verbose:
 gen:
 	@buf generate
 
-proto-image:
-	@buf build -o proto/aq.json
-
 dep:
 	@go install github.com/bufbuild/buf/cmd/buf@latest
 	@go install github.com/mgechev/revive@latest
 	
 count:
 	@echo "Linecounts excluding generated and third party code"
-	@gocloc --not-match-d='apipb|openapi|third_party' .
+	@gocloc --not-match-d='pkg/aq' .
 
 

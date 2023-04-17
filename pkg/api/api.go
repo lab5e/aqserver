@@ -62,6 +62,7 @@ func (s *Server) Start() {
 	// Create router
 	m := mux.NewRouter().StrictSlash(true)
 	m.HandleFunc("/stream", s.streamHandler).Methods("GET")
+	m.HandleFunc("/", s.indexHandler).Methods("GET")
 
 	// Set up access logging
 	if _, err := os.Stat(s.accessLogDir); os.IsNotExist(err) {

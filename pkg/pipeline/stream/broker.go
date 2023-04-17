@@ -123,12 +123,12 @@ func (b Broker) ListClients() []string {
 
 // Publish ...
 func (b *Broker) Publish(m *model.Message) error {
-	json, err := json.Marshal(m)
+	jsonData, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
 
-	b.broadcast <- json
+	b.broadcast <- jsonData
 
 	if b.next != nil {
 		return b.next.Publish(m)
