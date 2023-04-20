@@ -10,8 +10,7 @@ import (
 
 // Just make sure that the server starts and terminates.
 func TestAPISimple(t *testing.T) {
-	tempLogDir, err := io.TempDir("", "testlog")
-	assert.Nil(t, err)
+	tempLogDir := t.TempDir()
 	defer os.RemoveAll(tempLogDir)
 
 	log.Print(tempLogDir)
