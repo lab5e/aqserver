@@ -12,7 +12,6 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lab5e/go-spanapi/v4 v4.4.2
-	github.com/lab5e/spanclient-go/v4 v4.1.4
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/sgreben/piecewiselinear v1.1.1
 	github.com/stretchr/testify v1.8.2
@@ -20,7 +19,6 @@ require (
 )
 
 require (
-	github.com/antihax/optional v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eclipse/paho.golang v0.11.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
