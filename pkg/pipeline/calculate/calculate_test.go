@@ -9,9 +9,9 @@ import (
 )
 
 var cals = []model.Cal{
-	model.Cal{DeviceID: "foo", SysID: 1, ID: 3, ValidFrom: time.Date(2002, 1, 30, 0, 0, 0, 0, time.UTC)},
-	model.Cal{DeviceID: "foo", SysID: 1, ID: 2, ValidFrom: time.Date(2001, 1, 30, 0, 0, 0, 0, time.UTC)},
-	model.Cal{DeviceID: "foo", SysID: 1, ID: 1, ValidFrom: time.Date(2000, 1, 30, 0, 0, 0, 0, time.UTC)},
+	{DeviceID: "foo", SysID: 1, ID: 3, ValidFrom: time.Date(2002, 1, 30, 0, 0, 0, 0, time.UTC)},
+	{DeviceID: "foo", SysID: 1, ID: 2, ValidFrom: time.Date(2001, 1, 30, 0, 0, 0, 0, time.UTC)},
+	{DeviceID: "foo", SysID: 1, ID: 1, ValidFrom: time.Date(2000, 1, 30, 0, 0, 0, 0, time.UTC)},
 }
 
 func TestFindCacheEntry(t *testing.T) {
